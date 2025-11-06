@@ -8,6 +8,7 @@ import (
 
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/core"
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/des"
+	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/des/feistel"
 )
 
 func main() {
@@ -15,11 +16,11 @@ func main() {
 	fmt.Println()
 
 	// Создаем DES cipher на базе Feistel Network
-	desCipher := des.NewDESFeistel()
-	
+	desCipher := feistel.NewDESFeistel()
+
 	// Ключ DES (8 байт)
 	key := []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1}
-	
+
 	// Устанавливаем ключ
 	if err := desCipher.SetEncryptionKey(key); err != nil {
 		log.Fatalf("SetEncryptionKey failed: %v", err)
@@ -83,10 +84,10 @@ func main() {
 
 	for _, mode := range modes {
 		fmt.Printf("\n=== Testing %v ===\n", mode)
-		
+
 		// Создаем контекст с выбранным режимом
 		ctx := core.NewCipherContext(desCipher, mode, padding, iv)
-		
+
 		// Шифрование
 		ciphertext, err := ctx.Encrypt(plaintext)
 		if err != nil {
@@ -94,19 +95,19 @@ func main() {
 			continue
 		}
 		fmt.Printf("Encrypted (%d bytes): %x...\n", len(ciphertext), ciphertext[:16])
-		
+
 		// Дешифрование
 		decrypted, err := ctx.Decrypt(ciphertext)
 		if err != nil {
 			log.Printf("Decryption failed for %v: %v", mode, err)
 			continue
 		}
-		
+
 		// Проверка
 		match := bytes.Equal(plaintext, decrypted)
 		fmt.Printf("Decrypted: %s\n", decrypted)
 		fmt.Printf("Match: %t\n", match)
-		
+
 		// Тестируем асинхронную версию
 		fmt.Printf("Testing async... ")
 		decryptedCh, errCh := ctx.DecryptAsync(ciphertext)
@@ -118,7 +119,7 @@ func main() {
 			fmt.Printf("Async error: %v\n", err)
 		}
 	}
-	
+
 	// Тестируем разные паддинги
 	fmt.Printf("\n=== Testing different padding modes ===\n")
 	testPaddings := []core.PaddingMode{
@@ -127,23 +128,23 @@ func main() {
 		core.PadANSIX923,
 		core.PadISO10126,
 	}
-	
+
 	for _, padMode := range testPaddings {
 		fmt.Printf("\nPadding mode: %v\n", padMode)
 		ctx := core.NewCipherContext(desCipher, core.CBC, padMode, iv)
-		
+
 		ciphertext, err := ctx.Encrypt(plaintext)
 		if err != nil {
 			log.Printf("Encryption failed: %v", err)
 			continue
 		}
-		
+
 		decrypted, err := ctx.Decrypt(ciphertext)
 		if err != nil {
 			log.Printf("Decryption failed: %v", err)
 			continue
 		}
-		
+
 		fmt.Printf("Success: %t\n", bytes.Equal(plaintext, decrypted))
 	}
 }

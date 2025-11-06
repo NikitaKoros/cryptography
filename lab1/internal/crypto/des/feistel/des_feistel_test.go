@@ -1,8 +1,10 @@
-package des
+package feistel
 
 import (
 	"bytes"
 	"testing"
+
+	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/des"
 )
 
 func TestDESFeistel_EncryptDecrypt(t *testing.T) {
@@ -32,7 +34,7 @@ func TestDESFeistel_EncryptDecrypt(t *testing.T) {
 }
 
 func TestDESFeistel_CompareWithOriginal(t *testing.T) {
-	desOriginal := NewDES()
+	desOriginal := des.NewDES()
 	desFeistel := NewDESFeistel()
 
 	key := []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1}

@@ -1,10 +1,11 @@
-package des
+package feistel
 
 import (
 	"errors"
 
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/common"
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/core"
+	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/des"
 )
 
 // DESFeistel реализация DES на базе универсальной сети Фейстеля
@@ -14,8 +15,8 @@ type DESFeistel struct {
 
 // NewDESFeistel создаёт новый DES на базе сети Фейстеля
 func NewDESFeistel() *DESFeistel {
-	keySchedule := NewDESKeySchedule()
-	roundFunc := NewDESRoundFunction()
+	keySchedule := des.NewDESKeySchedule()
+	roundFunc := des.NewDESRoundFunction()
 	feistelNetwork := core.NewFeistelNetwork(keySchedule, roundFunc, 16)
 
 	return &DESFeistel{
@@ -43,7 +44,7 @@ func (d *DESFeistel) EncryptBlock(block []byte) ([]byte, error) {
 	}
 
 	// Начальная перестановка IP
-	permuted, err := common.Permute(block, IP[:], common.MSBToLSB, common.OneBased)
+	permuted, err := common.Permute(block, des.IP[:], common.MSBToLSB, common.OneBased)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +63,7 @@ func (d *DESFeistel) EncryptBlock(block []byte) ([]byte, error) {
 	copy(swapped[4:], left)
 
 	// Финальная перестановка IP^-1
-	result, err := common.Permute(swapped, IPInverse[:], common.MSBToLSB, common.OneBased)
+	result, err := common.Permute(swapped, des.IPInverse[:], common.MSBToLSB, common.OneBased)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +78,7 @@ func (d *DESFeistel) DecryptBlock(block []byte) ([]byte, error) {
 	}
 
 	// Начальная перестановка IP
-	permuted, err := common.Permute(block, IP[:], common.MSBToLSB, common.OneBased)
+	permuted, err := common.Permute(block, des.IP[:], common.MSBToLSB, common.OneBased)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +97,7 @@ func (d *DESFeistel) DecryptBlock(block []byte) ([]byte, error) {
 	copy(swapped[4:], left)
 
 	// Финальная перестановка IP^-1
-	result, err := common.Permute(swapped, IPInverse[:], common.MSBToLSB, common.OneBased)
+	result, err := common.Permute(swapped, des.IPInverse[:], common.MSBToLSB, common.OneBased)
 	if err != nil {
 		return nil, err
 	}
