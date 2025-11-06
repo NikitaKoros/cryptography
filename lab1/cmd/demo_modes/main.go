@@ -11,8 +11,11 @@ import (
 )
 
 func main() {
-	// Создаем DES cipher
-	desCipher := des.NewDES()
+	fmt.Println("=== DES на базе универсальной сети Фейстеля ===")
+	fmt.Println()
+
+	// Создаем DES cipher на базе Feistel Network
+	desCipher := des.NewDESFeistel()
 	
 	// Ключ DES (8 байт)
 	key := []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1}
@@ -22,11 +25,48 @@ func main() {
 		log.Fatalf("SetEncryptionKey failed: %v", err)
 	}
 
+	// Демонстрация базового шифрования блока
+	fmt.Println("--- Базовое шифрование блока ---")
+	plaintextBlock := []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF}
+	fmt.Printf("Original block:  %x\n", plaintextBlock)
+
+	ciphertextBlock, err := desCipher.EncryptBlock(plaintextBlock)
+	if err != nil {
+		log.Fatalf("EncryptBlock failed: %v", err)
+	}
+	fmt.Printf("Encrypted block: %x\n", ciphertextBlock)
+
+	decryptedBlock, err := desCipher.DecryptBlock(ciphertextBlock)
+	if err != nil {
+		log.Fatalf("DecryptBlock failed: %v", err)
+	}
+	fmt.Printf("Decrypted block: %x\n", decryptedBlock)
+	fmt.Printf("Match: %t\n\n", bytes.Equal(plaintextBlock, decryptedBlock))
+
+	// Сравнение с оригинальной реализацией
+	fmt.Println("--- Сравнение с оригинальной реализацией DES ---")
+	desOriginal := des.NewDES()
+	if err := desOriginal.SetEncryptionKey(key); err != nil {
+		log.Fatalf("Original SetEncryptionKey failed: %v", err)
+	}
+
+	ciphertextOriginal, err := desOriginal.EncryptBlock(plaintextBlock)
+	if err != nil {
+		log.Fatalf("Original EncryptBlock failed: %v", err)
+	}
+
+	fmt.Printf("Original DES ciphertext: %x\n", ciphertextOriginal)
+	fmt.Printf("Feistel DES ciphertext:  %x\n", ciphertextBlock)
+	fmt.Printf("Results match: %t\n\n", bytes.Equal(ciphertextOriginal, ciphertextBlock))
+
 	// Генерируем случайный IV для режимов, которые его требуют
 	iv := make([]byte, 8) // 8 байт для DES
 	if _, err := rand.Read(iv); err != nil {
 		log.Fatalf("IV generation failed: %v", err)
 	}
+
+	fmt.Println("=== Тестирование режимов шифрования с Feistel DES ===")
+	fmt.Println()
 
 	// Тестируем разные режимы
 	modes := []core.CipherMode{
