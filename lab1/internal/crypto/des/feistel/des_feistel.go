@@ -5,19 +5,20 @@ import (
 
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/common"
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/core"
+	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/core/feistel"
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/des"
 )
 
 // DESFeistel реализация DES на базе универсальной сети Фейстеля
 type DESFeistel struct {
-	feistelNetwork *core.FeistelNetwork
+	feistelNetwork *feistel.FeistelNetwork
 }
 
 // NewDESFeistel создаёт новый DES на базе сети Фейстеля
 func NewDESFeistel() *DESFeistel {
 	keySchedule := des.NewDESKeySchedule()
 	roundFunc := des.NewDESRoundFunction()
-	feistelNetwork := core.NewFeistelNetwork(keySchedule, roundFunc, 16)
+	feistelNetwork := feistel.NewFeistelNetwork(keySchedule, roundFunc, 16)
 
 	return &DESFeistel{
 		feistelNetwork: feistelNetwork,

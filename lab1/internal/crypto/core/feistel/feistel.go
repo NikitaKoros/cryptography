@@ -1,20 +1,22 @@
-package core
+package feistel
 
 import (
 	"errors"
+
+	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/core"
 )
 
 // FeistelNetwork универсальная реализация сети Фейстеля
 type FeistelNetwork struct {
-	keyExpander    KeyExpander
-	roundEncrypter RoundEncrypter
+	keyExpander    core.KeyExpander
+	roundEncrypter core.RoundEncrypter
 	rounds         int
 	encryptKeys    [][]byte
 	decryptKeys    [][]byte
 }
 
 // NewFeistelNetwork создаёт новую сеть Фейстеля
-func NewFeistelNetwork(keyExpander KeyExpander, roundEncrypter RoundEncrypter, rounds int) *FeistelNetwork {
+func NewFeistelNetwork(keyExpander core.KeyExpander, roundEncrypter core.RoundEncrypter, rounds int) *FeistelNetwork {
 	return &FeistelNetwork{
 		keyExpander:    keyExpander,
 		roundEncrypter: roundEncrypter,
@@ -102,4 +104,4 @@ func (fn *FeistelNetwork) DecryptBlock(block []byte) ([]byte, error) {
 }
 
 // Проверяем, что FeistelNetwork реализует интерфейс SymmetricCipher
-var _ SymmetricCipher = (*FeistelNetwork)(nil)
+var _ core.SymmetricCipher = (*FeistelNetwork)(nil)
