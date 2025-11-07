@@ -428,8 +428,54 @@ func addUint64ToBE(buf []byte, v uint64) {
 	binary.BigEndian.PutUint64(last, cur+v)
 }
 
+// MaxInMemorySize максимальный размер файла для загрузки в память (10 МБ)
+const MaxInMemorySize = 10 * 1024 * 1024
+
 // --- Файловые операции ---
 func (ctx *CipherContext) EncryptFile(inPath, outPath string) error {
+	info, err := os.Stat(inPath)
+	if err != nil {
+		return err
+	}
+
+	// Для больших файлов используем потоковое шифрование
+	if info.Size() > MaxInMemorySize {
+		inFile, err := os.Open(inPath)
+		if err != nil {
+			return err
+		}
+		defer inFile.Close()
+
+		outFile, err := os.Create(outPath)
+		if err != nil {
+			return err
+		}
+		defer outFile.Close()
+
+		// Читаем и шифруем порциями
+		buffer := make([]byte, 1024*1024) // 1MB буфер
+		for {
+			n, readErr := inFile.Read(buffer)
+			if n > 0 {
+				encrypted, encErr := ctx.Encrypt(buffer[:n])
+				if encErr != nil {
+					return encErr
+				}
+				if _, writeErr := outFile.Write(encrypted); writeErr != nil {
+					return writeErr
+				}
+			}
+			if readErr == io.EOF {
+				break
+			}
+			if readErr != nil {
+				return readErr
+			}
+		}
+		return nil
+	}
+
+	// Для маленьких файлов загружаем в память
 	in, err := os.ReadFile(inPath)
 	if err != nil {
 		return err
@@ -442,6 +488,49 @@ func (ctx *CipherContext) EncryptFile(inPath, outPath string) error {
 }
 
 func (ctx *CipherContext) DecryptFile(inPath, outPath string) error {
+	info, err := os.Stat(inPath)
+	if err != nil {
+		return err
+	}
+
+	// Для больших файлов используем потоковое дешифрование
+	if info.Size() > MaxInMemorySize {
+		inFile, err := os.Open(inPath)
+		if err != nil {
+			return err
+		}
+		defer inFile.Close()
+
+		outFile, err := os.Create(outPath)
+		if err != nil {
+			return err
+		}
+		defer outFile.Close()
+
+		// Читаем и дешифруем порциями
+		buffer := make([]byte, 1024*1024+ctx.blockSize) // 1MB + размер блока
+		for {
+			n, readErr := inFile.Read(buffer)
+			if n > 0 {
+				decrypted, decErr := ctx.Decrypt(buffer[:n])
+				if decErr != nil {
+					return decErr
+				}
+				if _, writeErr := outFile.Write(decrypted); writeErr != nil {
+					return writeErr
+				}
+			}
+			if readErr == io.EOF {
+				break
+			}
+			if readErr != nil {
+				return readErr
+			}
+		}
+		return nil
+	}
+
+	// Для маленьких файлов загружаем в память
 	in, err := os.ReadFile(inPath)
 	if err != nil {
 		return err
@@ -453,12 +542,62 @@ func (ctx *CipherContext) DecryptFile(inPath, outPath string) error {
 	return os.WriteFile(outPath, out, 0644)
 }
 
+// EncryptStream шифрует данные из reader в writer блоками
 func (ctx *CipherContext) EncryptStream(r io.Reader, w io.Writer) error {
+	buffer := make([]byte, 4096) // Буфер 4KB
+	remainder := []byte{}
+
+	for {
+		n, err := r.Read(buffer)
+		if n > 0 {
+			// Добавляем прочитанные данные к остатку
+			data := append(remainder, buffer[:n]...)
+
+			// Шифруем полные блоки
+			fullBlocks := (len(data) / ctx.blockSize) * ctx.blockSize
+			if fullBlocks > 0 {
+				encrypted, encErr := ctx.Encrypt(data[:fullBlocks])
+				if encErr != nil {
+					return encErr
+				}
+				if _, wErr := w.Write(encrypted); wErr != nil {
+					return wErr
+				}
+			}
+
+			// Сохраняем неполный блок
+			remainder = data[fullBlocks:]
+		}
+
+		if err == io.EOF {
+			// Шифруем последний блок с паддингом
+			if len(remainder) > 0 || ctx.padding != PadZeros {
+				encrypted, encErr := ctx.Encrypt(remainder)
+				if encErr != nil {
+					return encErr
+				}
+				if _, wErr := w.Write(encrypted); wErr != nil {
+					return wErr
+				}
+			}
+			break
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// DecryptStream дешифрует данные из reader в writer
+// Примечание: для правильного удаления паддинга нужно читать весь ciphertext
+func (ctx *CipherContext) DecryptStream(r io.Reader, w io.Writer) error {
 	buf := &bytes.Buffer{}
 	if _, err := buf.ReadFrom(r); err != nil {
 		return err
 	}
-	out, err := ctx.Encrypt(buf.Bytes())
+	out, err := ctx.Decrypt(buf.Bytes())
 	if err != nil {
 		return err
 	}
@@ -520,19 +659,24 @@ func (ctx *CipherContext) decryptPCBC(ciphertext []byte) ([]byte, error) {
 }
 
 // RandomDelta режим: добавляем случайную "дельту" перед каждым блоком
+// Начальная delta добавляется в начало ciphertext для дешифрования
 func (ctx *CipherContext) encryptRandomDelta(padded []byte) ([]byte, error) {
-	out := make([]byte, len(padded))
 	delta := make([]byte, ctx.blockSize)
 	if _, err := rand.Read(delta); err != nil {
 		return nil, err
 	}
+	
+	// Добавляем начальную delta в начало результата
+	out := make([]byte, ctx.blockSize+len(padded))
+	copy(out[:ctx.blockSize], delta)
+	
 	for i := 0; i < len(padded); i += ctx.blockSize {
 		block := xorBytes(padded[i:i+ctx.blockSize], delta)
 		c, err := ctx.cipher.EncryptBlock(block)
 		if err != nil {
 			return nil, err
 		}
-		copy(out[i:], c)
+		copy(out[ctx.blockSize+i:], c)
 
 		// обновляем delta (например, как XOR с ciphertext)
 		delta = xorBytes(delta, c)
@@ -541,13 +685,19 @@ func (ctx *CipherContext) encryptRandomDelta(padded []byte) ([]byte, error) {
 }
 
 func (ctx *CipherContext) decryptRandomDelta(ciphertext []byte) ([]byte, error) {
-	out := make([]byte, len(ciphertext))
-	delta := make([]byte, ctx.blockSize)
-	if _, err := rand.Read(delta); err != nil {
-		return nil, err
+	if len(ciphertext) < ctx.blockSize {
+		return nil, errors.New("ciphertext too short for RandomDelta")
 	}
-	for i := 0; i < len(ciphertext); i += ctx.blockSize {
-		block := ciphertext[i : i+ctx.blockSize]
+	
+	// Извлекаем начальную delta из начала ciphertext
+	delta := make([]byte, ctx.blockSize)
+	copy(delta, ciphertext[:ctx.blockSize])
+	
+	actualCiphertext := ciphertext[ctx.blockSize:]
+	out := make([]byte, len(actualCiphertext))
+	
+	for i := 0; i < len(actualCiphertext); i += ctx.blockSize {
+		block := actualCiphertext[i : i+ctx.blockSize]
 		d, err := ctx.cipher.DecryptBlock(block)
 		if err != nil {
 			return nil, err

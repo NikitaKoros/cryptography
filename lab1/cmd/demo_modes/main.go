@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/core"
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/des"
@@ -77,6 +78,7 @@ func main() {
 		core.CFB,
 		core.OFB,
 		core.CTR,
+		core.RandomDelta,
 	}
 
 	padding := core.PadPKCS7
@@ -146,5 +148,68 @@ func main() {
 		}
 
 		fmt.Printf("Success: %t\n", bytes.Equal(plaintext, decrypted))
+	}
+
+	// Демонстрация файловых операций
+	fmt.Printf("\n=== Testing file operations ===\n")
+	
+	// Создаем тестовый файл
+	testData := []byte("This is a test file for encryption. It contains some data that will be encrypted and then decrypted.")
+	if err := os.WriteFile("test_input.txt", testData, 0644); err != nil {
+		log.Printf("Failed to create test file: %v", err)
+	} else {
+		ctx := core.NewCipherContext(desCipher, core.CBC, core.PadPKCS7, iv)
+		
+		// Шифрование файла
+		if err := ctx.EncryptFile("test_input.txt", "test_encrypted.bin"); err != nil {
+			log.Printf("File encryption failed: %v", err)
+		} else {
+			fmt.Println("File encrypted successfully")
+			
+			// Дешифрование файла
+			if err := ctx.DecryptFile("test_encrypted.bin", "test_decrypted.txt"); err != nil {
+				log.Printf("File decryption failed: %v", err)
+			} else {
+				decryptedData, _ := os.ReadFile("test_decrypted.txt")
+				fmt.Printf("File decrypted successfully\n")
+				fmt.Printf("Match: %t\n", bytes.Equal(testData, decryptedData))
+				
+				// Очистка
+				os.Remove("test_input.txt")
+				os.Remove("test_encrypted.bin")
+				os.Remove("test_decrypted.txt")
+			}
+		}
+	}
+
+	// Демонстрация потокового шифрования
+	fmt.Printf("\n=== Testing stream encryption ===\n")
+	
+	// Создаем большой тестовый файл (больше 10 МБ для демонстрации потокового режима)
+	largeData := bytes.Repeat([]byte("Large file data for streaming encryption test. "), 250000) // ~11.5 MB
+	if err := os.WriteFile("large_test.txt", largeData, 0644); err != nil {
+		log.Printf("Failed to create large test file: %v", err)
+	} else {
+		ctx := core.NewCipherContext(desCipher, core.CBC, core.PadPKCS7, iv)
+		
+		fmt.Printf("Encrypting large file (%d bytes)...\n", len(largeData))
+		if err := ctx.EncryptFile("large_test.txt", "large_encrypted.bin"); err != nil {
+			log.Printf("Large file encryption failed: %v", err)
+		} else {
+			fmt.Println("Large file encrypted successfully (using streaming)")
+			
+			if err := ctx.DecryptFile("large_encrypted.bin", "large_decrypted.txt"); err != nil {
+				log.Printf("Large file decryption failed: %v", err)
+			} else {
+				decryptedLarge, _ := os.ReadFile("large_decrypted.txt")
+				fmt.Printf("Large file decrypted successfully\n")
+				fmt.Printf("Match: %t\n", bytes.Equal(largeData, decryptedLarge))
+				
+				// Очистка
+				os.Remove("large_test.txt")
+				os.Remove("large_encrypted.bin")
+				os.Remove("large_decrypted.txt")
+			}
+		}
 	}
 }
