@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-// TestBytesToBits проверяет конвертацию байтов в биты
 func TestBytesToBits(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -60,7 +59,6 @@ func TestBytesToBits(t *testing.T) {
 	}
 }
 
-// TestBitsToBytes проверяет конвертацию битов в байты
 func TestBitsToBytes(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -110,7 +108,6 @@ func TestBitsToBytes(t *testing.T) {
 	}
 }
 
-// TestBytesToBitsAndBack проверяет обратимость конвертации
 func TestBytesToBitsAndBack(t *testing.T) {
 	testData := [][]byte{
 		{0x00},
@@ -130,7 +127,6 @@ func TestBytesToBitsAndBack(t *testing.T) {
 	}
 }
 
-// TestPermute проверяет основную функцию перестановки
 func TestPermute(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -234,7 +230,6 @@ func TestPermute(t *testing.T) {
 	}
 }
 
-// TestPermuteIdentity проверяет тождественную перестановку
 func TestPermuteIdentity(t *testing.T) {
 	data := []byte{0x12, 0x34, 0x56, 0x78}
 	rule := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
@@ -249,7 +244,6 @@ func TestPermuteIdentity(t *testing.T) {
 	}
 }
 
-// TestPermuteBitOrders проверяет разные порядки битов
 func TestPermuteBitOrders(t *testing.T) {
 	data := []byte{0b11110000}
 
@@ -274,7 +268,6 @@ func TestPermuteBitOrders(t *testing.T) {
 	}
 }
 
-// BenchmarkPermute бенчмарк для функции Permute
 func BenchmarkPermute(b *testing.B) {
 	data := []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF}
 	rule := make([]int, 64)
@@ -288,7 +281,6 @@ func BenchmarkPermute(b *testing.B) {
 	}
 }
 
-// BenchmarkBytesToBits бенчмарк для BytesToBits
 func BenchmarkBytesToBits(b *testing.B) {
 	data := []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF}
 
@@ -298,7 +290,6 @@ func BenchmarkBytesToBits(b *testing.B) {
 	}
 }
 
-// BenchmarkBitsToBytes бенчмарк для BitsToBytes
 func BenchmarkBitsToBytes(b *testing.B) {
 	bits := make([]bool, 64)
 	for i := 0; i < 64; i++ {
