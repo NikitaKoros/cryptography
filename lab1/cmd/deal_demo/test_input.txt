@@ -1,0 +1,1 @@
+This is a test file for DEAL encryption. It contains some data that will be encrypted with 128-bit blocks and then decrypted.

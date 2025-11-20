@@ -3,9 +3,13 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/core"
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/des"
@@ -87,10 +91,8 @@ func main() {
 	for _, mode := range modes {
 		fmt.Printf("\n=== Testing %v ===\n", mode)
 
-		// Создаем контекст с выбранным режимом
 		ctx := core.NewCipherContext(desCipher, mode, padding, iv)
 
-		// Шифрование
 		ciphertext, err := ctx.Encrypt(plaintext)
 		if err != nil {
 			log.Printf("Encryption failed for %v: %v", mode, err)
@@ -98,31 +100,17 @@ func main() {
 		}
 		fmt.Printf("Encrypted (%d bytes): %x...\n", len(ciphertext), ciphertext[:16])
 
-		// Дешифрование
 		decrypted, err := ctx.Decrypt(ciphertext)
 		if err != nil {
 			log.Printf("Decryption failed for %v: %v", mode, err)
 			continue
 		}
 
-		// Проверка
 		match := bytes.Equal(plaintext, decrypted)
 		fmt.Printf("Decrypted: %s\n", decrypted)
 		fmt.Printf("Match: %t\n", match)
-
-		// Тестируем асинхронную версию
-		fmt.Printf("Testing async... ")
-		decryptedCh, errCh := ctx.DecryptAsync(ciphertext)
-		select {
-		case asyncDecrypted := <-decryptedCh:
-			asyncMatch := bytes.Equal(plaintext, asyncDecrypted)
-			fmt.Printf("Async match: %t\n", asyncMatch)
-		case err := <-errCh:
-			fmt.Printf("Async error: %v\n", err)
-		}
 	}
 
-	// Тестируем разные паддинги
 	fmt.Printf("\n=== Testing different padding modes ===\n")
 	testPaddings := []core.PaddingMode{
 		core.PadZeros,
@@ -133,7 +121,7 @@ func main() {
 
 	for _, padMode := range testPaddings {
 		fmt.Printf("\nPadding mode: %v\n", padMode)
-		ctx := core.NewCipherContext(desCipher, core.CBC, padMode, iv)
+		ctx := core.NewCipherContext(desCipher, core.ECB, padMode, iv)
 
 		ciphertext, err := ctx.Encrypt(plaintext)
 		if err != nil {
@@ -150,31 +138,26 @@ func main() {
 		fmt.Printf("Success: %t\n", bytes.Equal(plaintext, decrypted))
 	}
 
-	// Демонстрация файловых операций
 	fmt.Printf("\n=== Testing file operations ===\n")
-	
-	// Создаем тестовый файл
+
 	testData := []byte("This is a test file for encryption. It contains some data that will be encrypted and then decrypted.")
 	if err := os.WriteFile("test_input.txt", testData, 0644); err != nil {
 		log.Printf("Failed to create test file: %v", err)
 	} else {
 		ctx := core.NewCipherContext(desCipher, core.CBC, core.PadPKCS7, iv)
-		
-		// Шифрование файла
+
 		if err := ctx.EncryptFile("test_input.txt", "test_encrypted.bin"); err != nil {
 			log.Printf("File encryption failed: %v", err)
 		} else {
 			fmt.Println("File encrypted successfully")
-			
-			// Дешифрование файла
+
 			if err := ctx.DecryptFile("test_encrypted.bin", "test_decrypted.txt"); err != nil {
 				log.Printf("File decryption failed: %v", err)
 			} else {
 				decryptedData, _ := os.ReadFile("test_decrypted.txt")
 				fmt.Printf("File decrypted successfully\n")
 				fmt.Printf("Match: %t\n", bytes.Equal(testData, decryptedData))
-				
-				// Очистка
+
 				os.Remove("test_input.txt")
 				os.Remove("test_encrypted.bin")
 				os.Remove("test_decrypted.txt")
@@ -182,34 +165,80 @@ func main() {
 		}
 	}
 
-	// Демонстрация потокового шифрования
 	fmt.Printf("\n=== Testing stream encryption ===\n")
-	
-	// Создаем большой тестовый файл (больше 10 МБ для демонстрации потокового режима)
-	largeData := bytes.Repeat([]byte("Large file data for streaming encryption test. "), 250000) // ~11.5 MB
-	if err := os.WriteFile("large_test.txt", largeData, 0644); err != nil {
-		log.Printf("Failed to create large test file: %v", err)
+
+	//var filename = "large_test.txt"
+	var filename = "5062318-uhd_2560_1440_25fps.mp4"
+
+	inputPath := "./test_files/" + filename
+
+	// largeData := bytes.Repeat([]byte("Large file data for streaming encryption test. "), 2500000) // ~110.5 MB
+	// if err := os.WriteFile(inputPath, largeData, 0644); err != nil {
+	// 	log.Printf("Failed to create large test file: %v", err)
+	// 	os.Exit(1)
+	// }
+
+	ext := filepath.Ext(filename)
+	if len(ext) > 0 {
+		ext = ext[1:]
+	}
+
+	decryptedFile := fmt.Sprintf("large_decrypted.%s", ext)
+
+	outputPath := "./test_files/" + decryptedFile
+
+	ctx := core.NewCipherContext(desCipher, core.ECB, core.PadPKCS7, iv)
+
+	info, err := os.Stat(inputPath)
+	if err != nil {
+		log.Printf("Failed to get large file size")
+		os.Exit(1)
+	}
+	size := info.Size()
+	fmt.Printf("Encrypting large file (%d bytes)...\n", size)
+
+	if err := ctx.EncryptFile(inputPath, "./test_files/large_encrypted.bin"); err != nil {
+		log.Printf("Large file encryption failed: %v", err)
 	} else {
-		ctx := core.NewCipherContext(desCipher, core.CBC, core.PadPKCS7, iv)
-		
-		fmt.Printf("Encrypting large file (%d bytes)...\n", len(largeData))
-		if err := ctx.EncryptFile("large_test.txt", "large_encrypted.bin"); err != nil {
-			log.Printf("Large file encryption failed: %v", err)
+		fmt.Println("Large file encrypted successfully (using streaming)")
+
+		if err := ctx.DecryptFile("./test_files/large_encrypted.bin", outputPath); err != nil {
+			log.Printf("Large file decryption failed: %v", err)
 		} else {
-			fmt.Println("Large file encrypted successfully (using streaming)")
-			
-			if err := ctx.DecryptFile("large_encrypted.bin", "large_decrypted.txt"); err != nil {
-				log.Printf("Large file decryption failed: %v", err)
-			} else {
-				decryptedLarge, _ := os.ReadFile("large_decrypted.txt")
-				fmt.Printf("Large file decrypted successfully\n")
-				fmt.Printf("Match: %t\n", bytes.Equal(largeData, decryptedLarge))
-				
-				// Очистка
-				os.Remove("large_test.txt")
-				os.Remove("large_encrypted.bin")
-				os.Remove("large_decrypted.txt")
+
+			origHash, err := HashFileSHA256(inputPath)
+			if err != nil {
+				log.Printf("Failed to hash original file: %v", err)
+				os.Exit(1)
 			}
+
+			decHash, err := HashFileSHA256(outputPath)
+			if err != nil {
+				log.Printf("Failed to hash decrypted file: %v", err)
+				os.Exit(1)
+			}
+
+			fmt.Println("Large file decrypted successfully")
+			fmt.Printf("Match: %t\n", origHash == decHash)
+
+			// os.Remove(inputPath)
+			// os.Remove("./test_files/large_encrypted.bin")
+			// os.Remove(outputPath)
 		}
 	}
+}
+
+func HashFileSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
