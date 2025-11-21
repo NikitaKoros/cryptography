@@ -19,9 +19,6 @@ func NewDESAdapter(des core.SymmetricCipher) *DESAdapter {
 }
 
 // EncryptRound реализует раундовую функцию F для DEAL
-// В DEAL раундовая функция F обрабатывает правую половину блока через DES
-// Но DES работает только с 8-байтными блоками, поэтому для больших блоков
-// мы должны разбивать правую половину на 8-байтные части
 func (da *DESAdapter) EncryptRound(block []byte, roundKey []byte) ([]byte, error) {
 	blockSize := len(block)
 	if blockSize < 16 || blockSize > 48 || blockSize%8 != 0 {
@@ -39,45 +36,38 @@ func (da *DESAdapter) EncryptRound(block []byte, roundKey []byte) ([]byte, error
 		return nil, err
 	}
 
-	// Для DEAL функция F применяется только к правой части
-	// Но если размер блока больше 16 байт, нам нужно адаптировать логику
+	// Обрабатываем правую часть в зависимости от размера
 	var fResult []byte
 	var err error
 
 	if halfSize == 8 {
-		// Стандартный случай: правая половина 8 байт - шифруем целиком
+		// Стандартный случай: правая половина 8 байт
 		fResult, err = da.des.EncryptBlock(right)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		// Для больших блоков: разбиваем правую половину на 8-байтные части
-		// и шифруем каждую часть отдельно, затем объединяем
+		// Для больших блоков: шифруем каждую 8-байтную часть отдельно
 		fResult = make([]byte, halfSize)
-		for i := 0; i < halfSize; i += 8 {
-			end := i + 8
-			if end > halfSize {
-				end = halfSize
-			}
+		numParts := halfSize / 8
 
-			// Если часть меньше 8 байт, дополняем нулями
-			part := make([]byte, 8)
-			copy(part, right[i:end])
+		for part := 0; part < numParts; part++ {
+			start := part * 8
+			end := start + 8
 
-			encryptedPart, err := da.des.EncryptBlock(part)
+			encryptedPart, err := da.des.EncryptBlock(right[start:end])
 			if err != nil {
 				return nil, err
 			}
 
-			// Копируем только нужное количество байт обратно
-			copy(fResult[i:], encryptedPart[:end-i])
+			copy(fResult[start:], encryptedPart)
 		}
 	}
 
 	// XOR левой части с результатом функции F
 	newLeft := xorBytes(left, fResult)
 
-	// Собираем новый блок: newLeft + right (для следующего раунда)
+	// Собираем новый блок: newLeft + right (swap для следующего раунда)
 	result := make([]byte, blockSize)
 	copy(result[:halfSize], newLeft)
 	copy(result[halfSize:], right)
@@ -85,18 +75,10 @@ func (da *DESAdapter) EncryptRound(block []byte, roundKey []byte) ([]byte, error
 	return result, nil
 }
 
-// xorBytes выполняет XOR двух байтовых срезов
+// xorBytes выполняет XOR двух байтовых срезов одинаковой длины
 func xorBytes(a, b []byte) []byte {
 	if len(a) != len(b) {
-		minLen := len(a)
-		if len(b) < minLen {
-			minLen = len(b)
-		}
-		result := make([]byte, minLen)
-		for i := 0; i < minLen; i++ {
-			result[i] = a[i] ^ b[i]
-		}
-		return result
+		panic("xorBytes: slices must have equal length")
 	}
 
 	result := make([]byte, len(a))

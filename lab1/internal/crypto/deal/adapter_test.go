@@ -20,8 +20,20 @@ func TestDESAdapterEdgeCases(t *testing.T) {
 		wantError bool
 	}{
 		{
-			name:      "Valid input",
+			name:      "Valid 16-byte input",
 			block:     make([]byte, 16),
+			roundKey:  make([]byte, 8),
+			wantError: false,
+		},
+		{
+			name:      "Valid 24-byte input",
+			block:     make([]byte, 24),
+			roundKey:  make([]byte, 8),
+			wantError: false,
+		},
+		{
+			name:      "Valid 32-byte input",
+			block:     make([]byte, 32),
 			roundKey:  make([]byte, 8),
 			wantError: false,
 		},
@@ -33,14 +45,20 @@ func TestDESAdapterEdgeCases(t *testing.T) {
 		},
 		{
 			name:      "Block too large",
-			block:     make([]byte, 24),
+			block:     make([]byte, 64),
+			roundKey:  make([]byte, 8),
+			wantError: true,
+		},
+		{
+			name:      "Invalid block size (not multiple of 8)",
+			block:     make([]byte, 18),
 			roundKey:  make([]byte, 8),
 			wantError: true,
 		},
 		{
 			name:      "Invalid round key size",
 			block:     make([]byte, 16),
-			roundKey:  make([]byte, 16), // DES требует 8-байтовый ключ
+			roundKey:  make([]byte, 16),
 			wantError: true,
 		},
 	}

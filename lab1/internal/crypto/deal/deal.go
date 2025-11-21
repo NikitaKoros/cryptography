@@ -35,6 +35,12 @@ func NewDEALWithCustomBlockSize(desCipher core.SymmetricCipher, keySize, blockSi
 
 // newDEAL внутренняя функция создания DEAL
 func newDEAL(desCipher core.SymmetricCipher, keySize, blockSize int) *DEALCipher {
+	// Validate block sizes according to DEAL specification
+	if blockSize != 16 && blockSize != 24 && blockSize != 32 {
+		// Fall back to standard 128-bit block
+		blockSize = 16
+	}
+
 	// Создаем адаптер для DES
 	desAdapter := NewDESAdapter(desCipher)
 
@@ -66,10 +72,6 @@ func (d *DEALCipher) EncryptBlock(block []byte) ([]byte, error) {
 		return nil, errors.New("invalid block size for DEAL")
 	}
 
-	if d.blockSize != 16 && d.blockSize != 24 && d.blockSize != 32 {
-		return nil, errors.New("invalid DEAL block size")
-	}
-
 	return d.feistelNetwork.EncryptBlock(block)
 }
 
@@ -77,10 +79,6 @@ func (d *DEALCipher) EncryptBlock(block []byte) ([]byte, error) {
 func (d *DEALCipher) DecryptBlock(block []byte) ([]byte, error) {
 	if len(block) != d.blockSize {
 		return nil, errors.New("invalid block size for DEAL")
-	}
-
-	if d.blockSize != 16 && d.blockSize != 24 && d.blockSize != 32 {
-		return nil, errors.New("invalid DEAL block size")
 	}
 
 	return d.feistelNetwork.DecryptBlock(block)

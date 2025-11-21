@@ -1,6 +1,7 @@
 package deal
 
 import (
+	"crypto/sha256"
 	"errors"
 
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/core"
@@ -32,7 +33,7 @@ func NewDEALKeyExpander(keySize, blockSize int) *DEALKeyExpander {
 	}
 }
 
-// ExpandKey расширяет ключ для DEAL
+// ExpandKey расширяет ключ для DEAL с улучшенной схемой
 func (ke *DEALKeyExpander) ExpandKey(key []byte) ([][]byte, error) {
 	if len(key) != ke.keySize {
 		return nil, errors.New("invalid key size for DEAL")
@@ -44,15 +45,26 @@ func (ke *DEALKeyExpander) ExpandKey(key []byte) ([][]byte, error) {
 
 	subkeys := make([][]byte, ke.rounds)
 
-	// Генерируем раундовые ключи для DES (8 байт каждый)
+	// Используем SHA-256 для более надежной генерации подключей
+	baseHash := sha256.Sum256(key)
+
 	for i := 0; i < ke.rounds; i++ {
 		subkey := make([]byte, 8)
 
-		// Более сложная схема генерации раундовых ключей
+		// Генерируем подключ на основе базового хеша и номера раунда
+		roundData := make([]byte, len(baseHash)+1)
+		copy(roundData, baseHash[:])
+		roundData[len(baseHash)] = byte(i + 1)
+
+		roundHash := sha256.Sum256(roundData)
+
+		// Берем первые 8 байт хеша для подключа
+		copy(subkey, roundHash[:8])
+
+		// Добавляем зависимость от ключа
 		for j := 0; j < 8; j++ {
-			// Используем разные части ключа для разных раундов
-			keyIndex := (i*8 + j*2) % len(key)
-			subkey[j] = key[keyIndex] ^ byte((i+1)*(j+1))
+			keyIndex := (i*8 + j) % len(key)
+			subkey[j] ^= key[keyIndex]
 		}
 
 		subkeys[i] = subkey
