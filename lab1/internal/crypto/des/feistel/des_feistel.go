@@ -44,26 +44,22 @@ func (d *DESFeistel) EncryptBlock(block []byte) ([]byte, error) {
 		return nil, errors.New("DES block must be exactly 8 bytes")
 	}
 
-	// Начальная перестановка IP
 	permuted, err := common.Permute(block, des.IP[:], common.MSBToLSB, common.OneBased)
 	if err != nil {
 		return nil, err
 	}
 
-	// 16 раундов Фейстеля
 	feistelResult, err := d.feistelNetwork.EncryptBlock(permuted)
 	if err != nil {
 		return nil, err
 	}
 
-	// Меняем местами левую и правую части перед финальной перестановкой
 	left := feistelResult[:4]
 	right := feistelResult[4:]
 	swapped := make([]byte, 8)
 	copy(swapped[:4], right)
 	copy(swapped[4:], left)
 
-	// Финальная перестановка IP^-1
 	result, err := common.Permute(swapped, des.IPInverse[:], common.MSBToLSB, common.OneBased)
 	if err != nil {
 		return nil, err
@@ -78,26 +74,22 @@ func (d *DESFeistel) DecryptBlock(block []byte) ([]byte, error) {
 		return nil, errors.New("DES block must be exactly 8 bytes")
 	}
 
-	// Начальная перестановка IP
 	permuted, err := common.Permute(block, des.IP[:], common.MSBToLSB, common.OneBased)
 	if err != nil {
 		return nil, err
 	}
 
-	// 16 раундов Фейстеля с обратными ключами
 	feistelResult, err := d.feistelNetwork.DecryptBlock(permuted)
 	if err != nil {
 		return nil, err
 	}
 
-	// Меняем местами левую и правую части перед финальной перестановкой
 	left := feistelResult[:4]
 	right := feistelResult[4:]
 	swapped := make([]byte, 8)
 	copy(swapped[:4], right)
 	copy(swapped[4:], left)
 
-	// Финальная перестановка IP^-1
 	result, err := common.Permute(swapped, des.IPInverse[:], common.MSBToLSB, common.OneBased)
 	if err != nil {
 		return nil, err
@@ -110,5 +102,4 @@ func (d *DESFeistel) BlockSize() int {
 	return 8
 }
 
-// Проверяем, что DESFeistel реализует интерфейс SymmetricCipher
 var _ core.SymmetricCipher = (*DESFeistel)(nil)

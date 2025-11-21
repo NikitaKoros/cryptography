@@ -41,7 +41,6 @@ func (fn *FeistelNetwork) SetEncryptionKey(key []byte) error {
 
 	fn.EncryptKeys = subkeys
 
-	// Для дешифрования используем ключи в обратном порядке
 	fn.DecryptKeys = make([][]byte, fn.Rounds)
 	for i := 0; i < fn.Rounds; i++ {
 		fn.DecryptKeys[i] = fn.EncryptKeys[fn.Rounds-1-i]
@@ -67,7 +66,6 @@ func (fn *FeistelNetwork) EncryptBlock(block []byte) ([]byte, error) {
 	result := make([]byte, len(block))
 	copy(result, block)
 
-	// Выполняем раунды Фейстеля
 	for i := 0; i < fn.Rounds; i++ {
 		var err error
 		result, err = fn.RoundEncrypter.EncryptRound(result, fn.EncryptKeys[i])
@@ -91,7 +89,6 @@ func (fn *FeistelNetwork) DecryptBlock(block []byte) ([]byte, error) {
 	result := make([]byte, len(block))
 	copy(result, block)
 
-	// Выполняем раунды Фейстеля с обратными ключами
 	for i := 0; i < fn.Rounds; i++ {
 		var err error
 		result, err = fn.RoundEncrypter.EncryptRound(result, fn.DecryptKeys[i])
@@ -107,5 +104,4 @@ func (d *FeistelNetwork) BlockSize() int {
 	return 8
 }
 
-// Проверяем, что FeistelNetwork реализует интерфейс SymmetricCipher
 var _ core.SymmetricCipher = (*FeistelNetwork)(nil)

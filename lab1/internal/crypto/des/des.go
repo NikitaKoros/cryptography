@@ -34,7 +34,6 @@ func (d *DES) SetEncryptionKey(key []byte) error {
 
 	d.encryptKeys = subkeys
 
-	// Для дешифрования используем ключи в обратном порядке
 	d.decryptKeys = make([][]byte, 16)
 	for i := 0; i < 16; i++ {
 		d.decryptKeys[i] = d.encryptKeys[15-i]
@@ -65,7 +64,6 @@ func (d *DES) EncryptBlock(block []byte) ([]byte, error) {
 		}
 	}
 
-	// Меняем местами левую и правую части перед финальной перестановкой
 	left := permuted[:4]
 	right := permuted[4:]
 	swapped := make([]byte, 8)
@@ -114,5 +112,4 @@ func (d *DES) BlockSize() int {
 	return 8
 }
 
-// Проверяем, что DES реализует интерфейс SymmetricCipher
 var _ core.SymmetricCipher = (*DES)(nil)

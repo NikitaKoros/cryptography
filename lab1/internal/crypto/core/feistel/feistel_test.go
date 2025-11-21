@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-// MockKeyExpander для тестирования
 type MockKeyExpander struct {
 	rounds int
 }
@@ -18,11 +17,9 @@ func (m *MockKeyExpander) ExpandKey(key []byte) ([][]byte, error) {
 	return subkeys, nil
 }
 
-// MockRoundEncrypter для тестирования
 type MockRoundEncrypter struct{}
 
 func (m *MockRoundEncrypter) EncryptRound(block []byte, roundKey []byte) ([]byte, error) {
-	// Простое XOR для теста
 	result := make([]byte, len(block))
 	for i := range block {
 		result[i] = block[i] ^ roundKey[i%len(roundKey)]
@@ -49,7 +46,6 @@ func TestFeistelNetwork_SetEncryptionKey(t *testing.T) {
 		t.Errorf("Expected 4 decrypt keys, got %d", len(fn.DecryptKeys))
 	}
 
-	// Проверяем, что ключи дешифрования в обратном порядке
 	if !bytes.Equal(fn.EncryptKeys[0], fn.DecryptKeys[3]) {
 		t.Error("Decrypt keys are not in reverse order")
 	}
@@ -68,19 +64,16 @@ func TestFeistelNetwork_EncryptDecrypt(t *testing.T) {
 
 	plaintext := []byte{0xAA, 0xBB, 0xCC, 0xDD}
 
-	// Шифрование
 	ciphertext, err := fn.EncryptBlock(plaintext)
 	if err != nil {
 		t.Fatalf("EncryptBlock failed: %v", err)
 	}
 
-	// Дешифрование
 	decrypted, err := fn.DecryptBlock(ciphertext)
 	if err != nil {
 		t.Fatalf("DecryptBlock failed: %v", err)
 	}
 
-	// Проверяем, что получили исходный текст
 	if !bytes.Equal(plaintext, decrypted) {
 		t.Errorf("Decryption failed: got %x, want %x", decrypted, plaintext)
 	}

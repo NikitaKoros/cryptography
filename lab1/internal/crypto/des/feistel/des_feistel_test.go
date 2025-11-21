@@ -40,7 +40,6 @@ func TestDESFeistel_CompareWithOriginal(t *testing.T) {
 	key := []byte{0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1}
 	plaintext := []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF}
 
-	// Устанавливаем ключи
 	if err := desOriginal.SetEncryptionKey(key); err != nil {
 		t.Fatalf("Original SetEncryptionKey failed: %v", err)
 	}
@@ -48,7 +47,6 @@ func TestDESFeistel_CompareWithOriginal(t *testing.T) {
 		t.Fatalf("Feistel SetEncryptionKey failed: %v", err)
 	}
 
-	// Шифруем обеими реализациями
 	ciphertextOriginal, err := desOriginal.EncryptBlock(plaintext)
 	if err != nil {
 		t.Fatalf("Original EncryptBlock failed: %v", err)
@@ -59,12 +57,10 @@ func TestDESFeistel_CompareWithOriginal(t *testing.T) {
 		t.Fatalf("Feistel EncryptBlock failed: %v", err)
 	}
 
-	// Результаты должны совпадать
 	if !bytes.Equal(ciphertextOriginal, ciphertextFeistel) {
 		t.Errorf("Ciphertexts don't match:\nOriginal: %x\nFeistel:  %x", ciphertextOriginal, ciphertextFeistel)
 	}
 
-	// Дешифруем обеими реализациями
 	decryptedOriginal, err := desOriginal.DecryptBlock(ciphertextOriginal)
 	if err != nil {
 		t.Fatalf("Original DecryptBlock failed: %v", err)
@@ -75,7 +71,6 @@ func TestDESFeistel_CompareWithOriginal(t *testing.T) {
 		t.Fatalf("Feistel DecryptBlock failed: %v", err)
 	}
 
-	// Оба должны вернуть исходный текст
 	if !bytes.Equal(plaintext, decryptedOriginal) {
 		t.Errorf("Original decryption failed: got %x, want %x", decryptedOriginal, plaintext)
 	}

@@ -32,16 +32,13 @@ func Permute(data []byte, rule []int, bitOrder BitOrder, startIndex StartIndex) 
 
 	inputBits := BytesToBits(data, bitOrder)
 
-	// Приведём rule к zero-based индексам в битовом представлении
 	outputBits := make([]bool, len(rule))
 	for i, pos := range rule {
 		adjusted := pos
 		if startIndex == OneBased {
 			adjusted = pos - 1
 		}
-		// теперь adjusted — индекс бита в терминах FIPS (левый=0) или в общем — см. BytesToBits/ordering
 		if adjusted < 0 || adjusted >= len(inputBits) {
-			// безопаснее — вернуть ошибку
 			return nil, errors.New("Permute: rule index out of range")
 		}
 		outputBits[i] = inputBits[adjusted]
