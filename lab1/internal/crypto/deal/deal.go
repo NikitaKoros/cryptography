@@ -66,6 +66,10 @@ func (d *DEALCipher) EncryptBlock(block []byte) ([]byte, error) {
 		return nil, errors.New("invalid block size for DEAL")
 	}
 
+	if d.blockSize != 16 && d.blockSize != 24 && d.blockSize != 32 {
+		return nil, errors.New("invalid DEAL block size")
+	}
+
 	return d.feistelNetwork.EncryptBlock(block)
 }
 
@@ -73,6 +77,10 @@ func (d *DEALCipher) EncryptBlock(block []byte) ([]byte, error) {
 func (d *DEALCipher) DecryptBlock(block []byte) ([]byte, error) {
 	if len(block) != d.blockSize {
 		return nil, errors.New("invalid block size for DEAL")
+	}
+
+	if d.blockSize != 16 && d.blockSize != 24 && d.blockSize != 32 {
+		return nil, errors.New("invalid DEAL block size")
 	}
 
 	return d.feistelNetwork.DecryptBlock(block)

@@ -38,16 +38,21 @@ func (ke *DEALKeyExpander) ExpandKey(key []byte) ([][]byte, error) {
 		return nil, errors.New("invalid key size for DEAL")
 	}
 
+	if ke.keySize != 16 && ke.keySize != 24 && ke.keySize != 32 {
+		return nil, errors.New("unsupported key size")
+	}
+
 	subkeys := make([][]byte, ke.rounds)
 
 	// Генерируем раундовые ключи для DES (8 байт каждый)
 	for i := 0; i < ke.rounds; i++ {
-		subkey := make([]byte, 8) // DES использует 8-байтовые ключи
+		subkey := make([]byte, 8)
 
-		// Простая схема генерации раундовых ключей на основе основного ключа
+		// Более сложная схема генерации раундовых ключей
 		for j := 0; j < 8; j++ {
-			keyIndex := (i*8 + j) % len(key)
-			subkey[j] = key[keyIndex] ^ byte(i+1)
+			// Используем разные части ключа для разных раундов
+			keyIndex := (i*8 + j*2) % len(key)
+			subkey[j] = key[keyIndex] ^ byte((i+1)*(j+1))
 		}
 
 		subkeys[i] = subkey
