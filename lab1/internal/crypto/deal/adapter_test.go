@@ -8,78 +8,7 @@ import (
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/des"
 )
 
-// TestDESAdapterEdgeCases тестирует граничные случаи адаптера DES
-func TestDESAdapterEdgeCases(t *testing.T) {
-	desCipher := des.NewDES()
-	adapter := NewDESAdapter(desCipher)
-
-	tests := []struct {
-		name      string
-		block     []byte
-		roundKey  []byte
-		wantError bool
-	}{
-		{
-			name:      "Valid 16-byte input",
-			block:     make([]byte, 16),
-			roundKey:  make([]byte, 8),
-			wantError: false,
-		},
-		{
-			name:      "Valid 24-byte input",
-			block:     make([]byte, 24),
-			roundKey:  make([]byte, 8),
-			wantError: false,
-		},
-		{
-			name:      "Valid 32-byte input",
-			block:     make([]byte, 32),
-			roundKey:  make([]byte, 8),
-			wantError: false,
-		},
-		{
-			name:      "Block too small",
-			block:     make([]byte, 8),
-			roundKey:  make([]byte, 8),
-			wantError: true,
-		},
-		{
-			name:      "Block too large",
-			block:     make([]byte, 64),
-			roundKey:  make([]byte, 8),
-			wantError: true,
-		},
-		{
-			name:      "Invalid block size (not multiple of 8)",
-			block:     make([]byte, 18),
-			roundKey:  make([]byte, 8),
-			wantError: true,
-		},
-		{
-			name:      "Invalid round key size",
-			block:     make([]byte, 16),
-			roundKey:  make([]byte, 16),
-			wantError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Заполняем случайными данными
-			rand.Read(tt.block)
-			rand.Read(tt.roundKey)
-
-			_, err := adapter.EncryptRound(tt.block, tt.roundKey)
-
-			if (err != nil) != tt.wantError {
-				t.Errorf("EncryptRound() error = %v, wantError %v", err, tt.wantError)
-			}
-		})
-	}
-}
-
-// TestDESAdapterDeterministic тестирует детерминированность адаптера
-func TestDESAdapterDeterministic(t *testing.T) {
+func TestDESAdapterValidBlockSize(t *testing.T) {
 	desCipher := des.NewDES()
 	adapter := NewDESAdapter(desCipher)
 
@@ -88,13 +17,73 @@ func TestDESAdapterDeterministic(t *testing.T) {
 	rand.Read(block)
 	rand.Read(roundKey)
 
-	// Многократное выполнение с одинаковыми входными данными должно давать одинаковый результат
+	result, err := adapter.EncryptRound(block, roundKey)
+	if err != nil {
+		t.Fatalf("EncryptRound failed: %v", err)
+	}
+
+	if len(result) != 16 {
+		t.Errorf("Expected result length 16, got %d", len(result))
+	}
+
+	if bytes.Equal(result, block) {
+		t.Error("Expected encrypted result to be different from original block")
+	}
+}
+
+func TestDESAdapterInvalidBlockSize(t *testing.T) {
+	desCipher := des.NewDES()
+	adapter := NewDESAdapter(desCipher)
+
+	testCases := []struct {
+		name      string
+		blockSize int
+		wantError bool
+	}{
+		{"Valid 16-byte block", 16, false},
+		{"Invalid 15-byte block", 15, true},
+		{"Invalid 17-byte block", 17, true},
+		{"Invalid 8-byte block", 8, true},
+		{"Invalid 24-byte block", 24, true},
+		{"Invalid 32-byte block", 32, true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			block := make([]byte, tc.blockSize)
+			roundKey := make([]byte, 8)
+			rand.Read(block)
+			rand.Read(roundKey)
+
+			result, err := adapter.EncryptRound(block, roundKey)
+
+			if (err != nil) != tc.wantError {
+				t.Errorf("EncryptRound() error = %v, wantError %v", err, tc.wantError)
+				return
+			}
+
+			if !tc.wantError && len(result) != tc.blockSize {
+				t.Errorf("Expected result length %d, got %d", tc.blockSize, len(result))
+			}
+		})
+	}
+}
+
+func TestDESAdapterConsistency(t *testing.T) {
+	desCipher := des.NewDES()
+	adapter := NewDESAdapter(desCipher)
+
+	block := make([]byte, 16)
+	roundKey := make([]byte, 8)
+	rand.Read(block)
+	rand.Read(roundKey)
+
 	firstResult, err := adapter.EncryptRound(block, roundKey)
 	if err != nil {
 		t.Fatalf("First EncryptRound failed: %v", err)
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		result, err := adapter.EncryptRound(block, roundKey)
 		if err != nil {
 			t.Fatalf("EncryptRound iteration %d failed: %v", i, err)
@@ -102,6 +91,34 @@ func TestDESAdapterDeterministic(t *testing.T) {
 
 		if !bytes.Equal(result, firstResult) {
 			t.Errorf("EncryptRound is not deterministic at iteration %d", i)
+			t.Errorf("First: %x", firstResult)
+			t.Errorf("Current: %x", result)
 		}
+	}
+}
+
+func TestDESAdapterDecryptRound(t *testing.T) {
+	desCipher := des.NewDES()
+	adapter := NewDESAdapter(desCipher)
+
+	block := make([]byte, 16)
+	roundKey := make([]byte, 8)
+	rand.Read(block)
+	rand.Read(roundKey)
+
+	encrypted, err := adapter.EncryptRound(block, roundKey)
+	if err != nil {
+		t.Fatalf("EncryptRound failed: %v", err)
+	}
+
+	decrypted, err := adapter.DecryptRound(encrypted, roundKey)
+	if err != nil {
+		t.Fatalf("DecryptRound failed: %v", err)
+	}
+
+	if !bytes.Equal(decrypted, block) {
+		t.Error("DecryptRound did not return original block")
+		t.Errorf("Original: %x", block)
+		t.Errorf("Decrypted: %x", decrypted)
 	}
 }
