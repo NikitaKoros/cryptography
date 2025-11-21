@@ -106,5 +106,9 @@ func (d *DESFeistel) DecryptBlock(block []byte) ([]byte, error) {
 	return result, nil
 }
 
+func (d *DESFeistel) BlockSize() int {
+	return 8
+}
+
 // Проверяем, что DESFeistel реализует интерфейс SymmetricCipher
 var _ core.SymmetricCipher = (*DESFeistel)(nil)

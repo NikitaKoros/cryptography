@@ -41,16 +41,16 @@ func TestFeistelNetwork_SetEncryptionKey(t *testing.T) {
 		t.Fatalf("SetEncryptionKey failed: %v", err)
 	}
 
-	if len(fn.encryptKeys) != 4 {
-		t.Errorf("Expected 4 encrypt keys, got %d", len(fn.encryptKeys))
+	if len(fn.EncryptKeys) != 4 {
+		t.Errorf("Expected 4 encrypt keys, got %d", len(fn.EncryptKeys))
 	}
 
-	if len(fn.decryptKeys) != 4 {
-		t.Errorf("Expected 4 decrypt keys, got %d", len(fn.decryptKeys))
+	if len(fn.DecryptKeys) != 4 {
+		t.Errorf("Expected 4 decrypt keys, got %d", len(fn.DecryptKeys))
 	}
 
 	// Проверяем, что ключи дешифрования в обратном порядке
-	if !bytes.Equal(fn.encryptKeys[0], fn.decryptKeys[3]) {
+	if !bytes.Equal(fn.EncryptKeys[0], fn.DecryptKeys[3]) {
 		t.Error("Decrypt keys are not in reverse order")
 	}
 }

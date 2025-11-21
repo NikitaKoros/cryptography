@@ -16,4 +16,5 @@ type SymmetricCipher interface {
 	DecryptBlock(block []byte) ([]byte, error)
 	SetEncryptionKey(key []byte) error
 	SetDecryptionKey(key []byte) error
+	BlockSize() int
 }

@@ -110,5 +110,9 @@ func (d *DES) DecryptBlock(block []byte) ([]byte, error) {
 	return result, nil
 }
 
+func (d *DES) BlockSize() int {
+	return 8
+}
+
 // Проверяем, что DES реализует интерфейс SymmetricCipher
 var _ core.SymmetricCipher = (*DES)(nil)

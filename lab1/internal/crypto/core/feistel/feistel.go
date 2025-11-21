@@ -8,43 +8,43 @@ import (
 
 // FeistelNetwork универсальная реализация сети Фейстеля
 type FeistelNetwork struct {
-	keyExpander    core.KeyExpander
-	roundEncrypter core.RoundEncrypter
-	rounds         int
-	encryptKeys    [][]byte
-	decryptKeys    [][]byte
+	KeyExpander    core.KeyExpander
+	RoundEncrypter core.RoundEncrypter
+	Rounds         int
+	EncryptKeys    [][]byte
+	DecryptKeys    [][]byte
 }
 
 // NewFeistelNetwork создаёт новую сеть Фейстеля
-func NewFeistelNetwork(keyExpander core.KeyExpander, roundEncrypter core.RoundEncrypter, rounds int) *FeistelNetwork {
+func NewFeistelNetwork(KeyExpander core.KeyExpander, RoundEncrypter core.RoundEncrypter, Rounds int) *FeistelNetwork {
 	return &FeistelNetwork{
-		keyExpander:    keyExpander,
-		roundEncrypter: roundEncrypter,
-		rounds:         rounds,
+		KeyExpander:    KeyExpander,
+		RoundEncrypter: RoundEncrypter,
+		Rounds:         Rounds,
 	}
 }
 
 // SetEncryptionKey устанавливает ключ шифрования и генерирует раундовые ключи
 func (fn *FeistelNetwork) SetEncryptionKey(key []byte) error {
-	if fn.keyExpander == nil {
+	if fn.KeyExpander == nil {
 		return errors.New("key expander not set")
 	}
 
-	subkeys, err := fn.keyExpander.ExpandKey(key)
+	subkeys, err := fn.KeyExpander.ExpandKey(key)
 	if err != nil {
 		return err
 	}
 
-	if len(subkeys) != fn.rounds {
-		return errors.New("number of subkeys does not match rounds")
+	if len(subkeys) != fn.Rounds {
+		return errors.New("number of subkeys does not match Rounds")
 	}
 
-	fn.encryptKeys = subkeys
+	fn.EncryptKeys = subkeys
 
 	// Для дешифрования используем ключи в обратном порядке
-	fn.decryptKeys = make([][]byte, fn.rounds)
-	for i := 0; i < fn.rounds; i++ {
-		fn.decryptKeys[i] = fn.encryptKeys[fn.rounds-1-i]
+	fn.DecryptKeys = make([][]byte, fn.Rounds)
+	for i := 0; i < fn.Rounds; i++ {
+		fn.DecryptKeys[i] = fn.EncryptKeys[fn.Rounds-1-i]
 	}
 
 	return nil
@@ -57,10 +57,10 @@ func (fn *FeistelNetwork) SetDecryptionKey(key []byte) error {
 
 // EncryptBlock шифрует блок данных
 func (fn *FeistelNetwork) EncryptBlock(block []byte) ([]byte, error) {
-	if fn.roundEncrypter == nil {
+	if fn.RoundEncrypter == nil {
 		return nil, errors.New("round encrypter not set")
 	}
-	if fn.encryptKeys == nil {
+	if fn.EncryptKeys == nil {
 		return nil, errors.New("encryption key not set")
 	}
 
@@ -68,9 +68,9 @@ func (fn *FeistelNetwork) EncryptBlock(block []byte) ([]byte, error) {
 	copy(result, block)
 
 	// Выполняем раунды Фейстеля
-	for i := 0; i < fn.rounds; i++ {
+	for i := 0; i < fn.Rounds; i++ {
 		var err error
-		result, err = fn.roundEncrypter.EncryptRound(result, fn.encryptKeys[i])
+		result, err = fn.RoundEncrypter.EncryptRound(result, fn.EncryptKeys[i])
 		if err != nil {
 			return nil, err
 		}
@@ -81,10 +81,10 @@ func (fn *FeistelNetwork) EncryptBlock(block []byte) ([]byte, error) {
 
 // DecryptBlock дешифрует блок данных
 func (fn *FeistelNetwork) DecryptBlock(block []byte) ([]byte, error) {
-	if fn.roundEncrypter == nil {
+	if fn.RoundEncrypter == nil {
 		return nil, errors.New("round encrypter not set")
 	}
-	if fn.decryptKeys == nil {
+	if fn.DecryptKeys == nil {
 		return nil, errors.New("decryption key not set")
 	}
 
@@ -92,15 +92,19 @@ func (fn *FeistelNetwork) DecryptBlock(block []byte) ([]byte, error) {
 	copy(result, block)
 
 	// Выполняем раунды Фейстеля с обратными ключами
-	for i := 0; i < fn.rounds; i++ {
+	for i := 0; i < fn.Rounds; i++ {
 		var err error
-		result, err = fn.roundEncrypter.EncryptRound(result, fn.decryptKeys[i])
+		result, err = fn.RoundEncrypter.EncryptRound(result, fn.DecryptKeys[i])
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	return result, nil
+}
+
+func (d *FeistelNetwork) BlockSize() int {
+	return 8
 }
 
 // Проверяем, что FeistelNetwork реализует интерфейс SymmetricCipher

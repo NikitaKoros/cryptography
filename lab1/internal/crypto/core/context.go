@@ -46,11 +46,13 @@ type CipherContext struct {
 
 // NewCipherContext создаёт контекст. iv может быть nil для режимов ECB.
 func NewCipherContext(c SymmetricCipher, mode CipherMode, padding PaddingMode, iv []byte, opts ...interface{}) *CipherContext {
+	blockSize := c.BlockSize()
+
 	return &CipherContext{
 		cipher:      c,
 		mode:        mode,
 		padding:     padding,
-		blockSize:   8, // для DES
+		blockSize:   blockSize,
 		iv:          iv,
 		modeOptions: opts,
 	}
