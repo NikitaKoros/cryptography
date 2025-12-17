@@ -383,7 +383,7 @@ func (ctx *CipherContext) decryptCBC(ciphertext []byte) ([]byte, error) {
 	return out, nil
 }
 
-// CFB (параллельная расшифровка)
+// CFB
 func (ctx *CipherContext) encryptCFB(padded []byte) ([]byte, error) {
 	if ctx.iv == nil || len(ctx.iv) != ctx.blockSize {
 		return nil, errors.New("CFB requires IV of block size")
@@ -408,49 +408,19 @@ func (ctx *CipherContext) decryptCFB(ciphertext []byte) ([]byte, error) {
 	if ctx.iv == nil || len(ctx.iv) != ctx.blockSize {
 		return nil, errors.New("CFB requires IV of block size")
 	}
-
-	blocksCount := len(ciphertext) / ctx.blockSize
 	out := make([]byte, len(ciphertext))
-	encrypted := make([][]byte, blocksCount)
+	feedback := append([]byte{}, ctx.iv...)
 
-	type result struct {
-		index int
-		data  []byte
-		err   error
-	}
-
-	results := make(chan result, blocksCount)
-
-	for i := 0; i < blocksCount; i++ {
-		go func(blockIndex int) {
-			var feedback []byte
-			if blockIndex == 0 {
-				feedback = append([]byte{}, ctx.iv...)
-			} else {
-				start := (blockIndex - 1) * ctx.blockSize
-				feedback = ciphertext[start : start+ctx.blockSize]
-			}
-
-			stream, err := ctx.cipher.EncryptBlock(feedback)
-			results <- result{blockIndex, stream, err}
-		}(i)
-	}
-
-	for i := 0; i < blocksCount; i++ {
-		res := <-results
-		if res.err != nil {
-			return nil, res.err
+	for i := 0; i < len(ciphertext); i += ctx.blockSize {
+		stream, err := ctx.cipher.EncryptBlock(feedback)
+		if err != nil {
+			return nil, err
 		}
-		encrypted[res.index] = res.data
+		block := ciphertext[i : i+ctx.blockSize]
+		plain := xorBytes(block, stream)
+		copy(out[i:], plain)
+		feedback = block
 	}
-
-	for i := 0; i < blocksCount; i++ {
-		start := i * ctx.blockSize
-		block := ciphertext[start : start+ctx.blockSize]
-		plain := xorBytes(block, encrypted[i])
-		copy(out[start:], plain)
-	}
-
 	return out, nil
 }
 
@@ -780,8 +750,8 @@ func (ctx *CipherContext) EncryptFile(inPath, outPath string) error {
 		}
 		defer outFile.Close()
 
-		//numWorkers := runtime.NumCPU()
-		numWorkers := 6
+		numWorkers := runtime.NumCPU()
+		//numWorkers := 1
 		tasks := make(chan bufferTask, numWorkers*2)
 		results := make(chan bufferResult, numWorkers*2)
 

@@ -2,17 +2,13 @@ package numbertheory
 
 import "math/big"
 
-// GCD вычисляет НОД двух целых чисел алгоритмом Евклида
 func (s *Service) GCD(a, b *big.Int) *big.Int {
-	// Создаем копии для работы
 	x := new(big.Int).Set(a)
 	y := new(big.Int).Set(b)
 
-	// Работаем с абсолютными значениями
 	x.Abs(x)
 	y.Abs(y)
 
-	// Алгоритм Евклида
 	for y.Cmp(big.NewInt(0)) != 0 {
 		temp := new(big.Int).Set(y)
 		y.Mod(x, y)

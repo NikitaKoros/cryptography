@@ -7,43 +7,46 @@ import (
 	"log"
 	"time"
 
+	threedes "github.com/NikitaKoros/cryptography/lab1/internal/crypto/3des"
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/core"
-	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/deal"
 	"github.com/NikitaKoros/cryptography/lab1/internal/crypto/des"
 )
 
 func main() {
-	fmt.Println("=== Полное тестирование DEAL ===\n")
+	fmt.Println("=== Полное тестирование Triple DES (DES-EDE3) ===\n")
 
-	desCipher := des.NewDES()
-	dealCipher := deal.NewDEAL128(desCipher)
+	// Создаем три независимых экземпляра DES для Triple DES
+	des1 := des.NewDES()
+	des2 := des.NewDES()
+	des3 := des.NewDES()
 
-	key := make([]byte, 16)
+	// Создаем Triple DES cipher
+	tripleDesCipher := threedes.NewTripleDES(des1, des2, des3)
+
+	// Создаем ключ 24 байта (192 бита) для Triple DES-EDE3
+	key := make([]byte, 24)
 	for i := range key {
 		key[i] = byte(i)
 	}
 
-	if err := dealCipher.SetEncryptionKey(key); err != nil {
+	if err := tripleDesCipher.SetEncryptionKey(key); err != nil {
 		log.Fatalf("SetEncryptionKey error: %v", err)
 	}
 
-	fmt.Printf("Ключ: %x (16 байт)\n\n", key)
+	fmt.Printf("Ключ: %x (24 байта)\n\n", key)
 
 	// Базовое тестирование блока
 	fmt.Println("--- Базовое шифрование блока ---")
-	plaintextBlock := make([]byte, 16)
-	for i := range plaintextBlock {
-		plaintextBlock[i] = byte(i + 10)
-	}
+	plaintextBlock := []byte("TestData")
 	fmt.Printf("Original block:  %x\n", plaintextBlock)
 
-	ciphertextBlock, err := dealCipher.EncryptBlock(plaintextBlock)
+	ciphertextBlock, err := tripleDesCipher.EncryptBlock(plaintextBlock)
 	if err != nil {
 		log.Fatalf("EncryptBlock failed: %v", err)
 	}
 	fmt.Printf("Encrypted block: %x\n", ciphertextBlock)
 
-	decryptedBlock, err := dealCipher.DecryptBlock(ciphertextBlock)
+	decryptedBlock, err := tripleDesCipher.DecryptBlock(ciphertextBlock)
 	if err != nil {
 		log.Fatalf("DecryptBlock failed: %v", err)
 	}
@@ -51,7 +54,7 @@ func main() {
 	fmt.Printf("Match: %t\n\n", bytes.Equal(plaintextBlock, decryptedBlock))
 
 	// Генерируем IV
-	iv := make([]byte, dealCipher.BlockSize())
+	iv := make([]byte, tripleDesCipher.BlockSize())
 	if _, err := rand.Read(iv); err != nil {
 		log.Fatalf("Ошибка генерации IV: %v", err)
 	}
@@ -76,7 +79,7 @@ func main() {
 	}
 
 	// Создаем данные размером 8 МБ для более точного замера времени
-	plaintext := make([]byte, 8*1024)
+	plaintext := make([]byte, 1024*1024)
 	for i := range plaintext {
 		plaintext[i] = byte(i % 256)
 	}
@@ -89,7 +92,7 @@ func main() {
 		for _, padding := range paddings {
 			fmt.Printf("Testing %v + %v... ", mode, padding)
 
-			ctx := core.NewCipherContext(dealCipher, mode, padding, iv)
+			ctx := core.NewCipherContext(tripleDesCipher, mode, padding, iv)
 
 			startEnc := time.Now()
 			ciphertext, err := ctx.Encrypt(plaintext)
